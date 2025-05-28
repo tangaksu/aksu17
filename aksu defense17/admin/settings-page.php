@@ -1,12 +1,13 @@
 <?php
 if (!defined('ABSPATH')) exit;
 
-// 插件基础设置页面（含IP黑白名单、自定义登录设置）
+// 插件基础设置页面（含IP黑白名单、自定义登录相关设置）
 function aksu_settings_page() {
     if (isset($_POST['wpss_settings_save']) && check_admin_referer('wpss_settings')) {
         update_option('wpss_admin_email', sanitize_email($_POST['wpss_admin_email']));
         update_option('wpss_ip_whitelist', trim($_POST['wpss_ip_whitelist']));
         update_option('wpss_ip_blacklist', trim($_POST['wpss_ip_blacklist']));
+        // 新增：保存自定义登录slug和附加参数
         update_option('wpss_custom_login_slug', sanitize_text_field($_POST['wpss_custom_login_slug']));
         update_option('wpss_login_extra_param', sanitize_text_field($_POST['wpss_login_extra_param']));
         update_option('wpss_login_extra_value', sanitize_text_field($_POST['wpss_login_extra_value']));
@@ -44,14 +45,16 @@ function aksu_settings_page() {
                         <p class="description">支持如 1.2.3.4、10.10.*.*、2001:db8::1等。命中黑名单将直接拒绝访问。</p>
                     </td>
                 </tr>
-                <!-- 新增：自定义登录路径与参数验证设置 -->
+                <!-- 新增自定义登录slug和参数 -->
                 <tr>
                     <th>自定义登录地址</th>
                     <td>
                         <input type="text" name="wpss_custom_login_slug" id="wpss_custom_login_slug" value="<?php echo esc_attr($custom_login_slug); ?>" style="width:220px;" placeholder="如 my-login">
-                        <p class="description">将 WordPress 登录地址从 /wp-login.php 改为 /?your-slug（如 /?my-login）。建议使用字母、数字、短横线组合。</p>
-                        <span style="color:#888;">启用后，原有 <code>/wp-login.php</code> 登录入口会被保护，只允许通过此自定义路径访问登录页面。</span>
-                        <br><span style="color:#888;">如需响应码、全局开关等请移步“防火墙规则”设置。</span>
+                        <p class="description">
+                            将WordPress登录地址从 /wp-login.php 改为 /?your-slug（如 /?my-login）。建议使用字母、数字、短横线组合。<br>
+                            启用后原有 <code>/wp-login.php</code> 登录入口会被保护，只允许通过此自定义路径访问登录页面。<br>
+                            <span style="color:#888;">如需开启/关闭、响应码等控制，请到“防火墙规则”设置。</span>
+                        </p>
                     </td>
                 </tr>
                 <tr>
@@ -59,10 +62,11 @@ function aksu_settings_page() {
                     <td>
                         <input type="text" name="wpss_login_extra_param" id="wpss_login_extra_param" value="<?php echo esc_attr($login_extra_param); ?>" style="width:120px;" placeholder="参数名，如 token">
                         <input type="text" name="wpss_login_extra_value" id="wpss_login_extra_value" value="<?php echo esc_attr($login_extra_value); ?>" style="width:120px;" placeholder="参数值">
-                        <p class="description">开启后，登录页面只有带此参数（如 <code>?my-login&token=xxxx</code>）才允许访问。留空则不启用。</p>
+                        <p class="description">
+                            开启后，登录页面只有带此参数（如 <code>?my-login&token=xxxx</code>）才允许访问。留空则不启用。
+                        </p>
                     </td>
                 </tr>
-                <!-- 新增结束 -->
             </table>
             <p><button type="submit" class="button button-primary" name="wpss_settings_save">保存设置</button></p>
         </form>

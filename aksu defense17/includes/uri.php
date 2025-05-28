@@ -4,6 +4,17 @@ if (!defined('ABSPATH')) exit;
 
 if (!function_exists('aksu_uri_defend')) {
     function aksu_uri_defend() {
+        // ====== 全局白名单豁免 ======
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        $white = get_option('wpss_ip_whitelist', '');
+        $white_arr = array_filter(array_map('trim', preg_split('/[\n,]+/', $white)));
+        foreach ($white_arr as $w) {
+            if (function_exists('aksu_ip_match') && aksu_ip_match($ip, $w)) {
+                return; // 命中白名单，直接放行
+            }
+        }
+        // ===========================
+
         // 管理员豁免：已登录且有插件管理权限直接放行
         if (function_exists('is_admin') && function_exists('is_user_logged_in') && function_exists('current_user_can')) {
             if (is_admin() && is_user_logged_in() && current_user_can('activate_plugins')) {
@@ -11,15 +22,10 @@ if (!function_exists('aksu_uri_defend')) {
             }
         }
 
-        // 获取当前访问的IP
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
-        // 获取白名单列表
-        $white = get_option('wpss_ip_whitelist', '');
-
         // 获取当前请求的URI
         $uri = $_SERVER['REQUEST_URI'] ?? '';
 
-        // 新增：拦截 /wp-cron.php，白名单IP豁免
+        // 新增：拦截 /wp-cron.php，白名单IP豁免（已由上方统一处理，这里保留兼容）
         if (preg_match('#^/wp-cron\.php(\?|$)#i', $uri)) {
             // 判断当前IP是否在白名单，如果不在则拦截
             if (!$white || !function_exists('aksu_ip_in_list') || !aksu_ip_in_list($ip, $white)) {

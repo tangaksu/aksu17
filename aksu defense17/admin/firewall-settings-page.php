@@ -28,9 +28,12 @@ function aksu_firewall_settings_page() {
         update_option('wpss_fw_uri_custom_code', in_array($_POST['wpss_fw_uri_custom_code'], ['403','400']) ? $_POST['wpss_fw_uri_custom_code'] : '403');
         update_option('wpss_uri_custom_rules', sanitize_textarea_field($_POST['wpss_uri_custom_rules']));
         update_option('wpss_ua_blacklist', trim($_POST['wpss_ua_blacklist']));
-        // 保存自定义HTTP响应体内容
+        // 新增自定义HTTP响应体内容
         update_option('wpss_resp_html_400', wp_kses_post($_POST['wpss_resp_html_400']));
         update_option('wpss_resp_html_403', wp_kses_post($_POST['wpss_resp_html_403']));
+        // 新增：登录入口安全防护开关
+        update_option('wpss_fw_loginprotect_status', isset($_POST['wpss_fw_loginprotect_status']) ? 1 : 0);
+        update_option('wpss_fw_loginprotect_code', in_array($_POST['wpss_fw_loginprotect_code'], ['403','400']) ? $_POST['wpss_fw_loginprotect_code'] : '403');
         echo '<div class="updated"><p>设置已保存。</p></div>';
     }
     // 读取响应体内容
@@ -96,7 +99,7 @@ function aksu_firewall_settings_page() {
                         <textarea name="wpss_ua_blacklist" rows="3" class="wpss-fw-textarea" placeholder="*curl*|*IE*|*chrome*|*firefox*"><?php echo esc_textarea(get_option('wpss_ua_blacklist', '')); ?></textarea>
                         <p class="description" style="color:#888;">
                             填写说明：多个值用 <code>|</code> 分割，支持通配符 <code>*</code>（如 <code>*curl*</code> 可拦截包含curl的UA。
-                            <span style="cursor:pointer;color:#2271b1;" onclick="var ex=document.getElementById('ua_blacklist_example');ex.style.display=ex.style.display=='none'?'block':'none';this.style.fontWeight=this.style.fontWeight=='bold'?'':'bold';">[示例]</span>
+                            <span style="cursor:pointer;color:#2271b1;" onclick="var ex=document.getElementById('ua_blacklist_example');ex.style.display=ex.style.display=='none'?'block':'none';this.style.color='#aaa';">显示示例</span>
                             <span id="ua_blacklist_example" class="wpss-fw-example" style="display:none;padding:8px 12px;background:#f6f6f6;border-radius:4px;border:1px solid #eee; color:#444;">
                                 <br>- <b>*</b> 代表任意字符串。例如：<code>*crawler*</code> 匹配包含 crawler 的所有UA。<br>
                                 - <code>abc*</code> 匹配以 abc 开头的UA。<br>
@@ -172,7 +175,7 @@ function aksu_firewall_settings_page() {
                         <textarea name="wpss_uri_custom_rules" rows="3" class="wpss-fw-textarea" placeholder="/example-uri"><?php echo esc_textarea(get_option('wpss_uri_custom_rules', '')); ?></textarea>
                         <p class="description" style="color:#888;">
                             填写说明：每行填写一组规则，同一行内可用 <b>|</b> 分隔多个内容，命中任意一个即拦截。
-                            <span style="cursor:pointer;color:#2271b1;" onclick="var ex=document.getElementById('uri_rules_example');ex.style.display=ex.style.display=='none'?'block':'none';this.style.fontWeight=this.style.fontWeight=='bold'?'':'bold';">[示例]</span>
+                            <span style="cursor:pointer;color:#2271b1;" onclick="var ex=document.getElementById('uri_rules_example');ex.style.display=ex.style.display=='none'?'block':'none';this.style.color='#aaa';">显示示例</span>
                             <span id="uri_rules_example" class="wpss-fw-example" style="display:none;padding:8px 12px;background:#f6f6f6;border-radius:4px;border:1px solid #eee; color:#444;">
                                 <br><code>/admin|/manage</code> （命中 /admin 或 /manage 即拦截）<br>
                                 <code>.php|.asp</code> （命中 .php 或 .asp 即拦截）<br>
@@ -181,6 +184,22 @@ function aksu_firewall_settings_page() {
                                 <b>注意：</b>正则表达式需以 <code>/</code> 开头和结尾，其余为普通关键词匹配。
                             </span>
                         </p>
+                    </td>
+                </tr>
+                <!-- 登录入口安全防护开关 -->
+                <tr>
+                    <th>登录入口安全防护</th>
+                    <td class="fw-select-cell">
+                        <select name="wpss_fw_loginprotect_code">
+                            <option value="403" <?php selected(get_option('wpss_fw_loginprotect_code', '403'), '403'); ?>>403</option>
+                            <option value="400" <?php selected(get_option('wpss_fw_loginprotect_code', '403'), '400'); ?>>400</option>
+                        </select>
+                    </td>
+                    <td>
+                        <label><input type="checkbox" name="wpss_fw_loginprotect_status" value="1" <?php checked(get_option('wpss_fw_loginprotect_status', 1)); ?>> 启用</label>
+                        <br>
+                        <span style="color:#888;">自定义登录地址和参数请到“插件设置”页面设置。</span>
+                        <p class="description">开启后，只有通过自定义登录slug和参数才能访问登录页，拦截将返回此处设置的HTTP响应码。</p>
                     </td>
                 </tr>
                 <tr>

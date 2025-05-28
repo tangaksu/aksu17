@@ -3,6 +3,18 @@
 if (!defined('ABSPATH')) exit;
 
 function aksu_injection_defend() {
+    
+     // ====== 全局白名单豁免 ======
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $white = get_option('wpss_ip_whitelist', '');
+    $white_arr = array_filter(array_map('trim', preg_split('/[\n,]+/', $white)));
+    foreach ($white_arr as $w) {
+        if (function_exists('aksu_ip_match') && aksu_ip_match($ip, $w)) {
+            return; // 命中白名单，直接放行
+        }
+    }
+    // ===========================
+    
     // 管理员豁免：已登录且为管理员账号直接放行
     if (function_exists('is_user_logged_in') && function_exists('current_user_can')) {
         if (is_user_logged_in() && current_user_can('manage_options')) return;
@@ -24,17 +36,6 @@ function aksu_injection_defend() {
 
     // 合并所有请求参数（**只检测用户可控的 GET 和 POST 参数**，不检测全部 cookie，防止误判）
     $params = array_merge($_GET, $_POST);
-
-    // 可选：如需检测部分高危cookie，可以在此加入白名单机制
-    /*
-    $cookie_whitelist = ['wp-settings-1', 'wp-settings-time-1', 'wpcom_panel_nav'];
-    foreach ($_COOKIE as $k => $v) {
-        if (!in_array($k, $cookie_whitelist)) {
-            if (is_array($v)) $v = implode(',', $v);
-            $params[$k] = $v;
-        }
-    }
-    */
 
     $all = '';
     foreach ($params as $k => $v) {

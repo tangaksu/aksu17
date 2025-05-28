@@ -18,7 +18,7 @@ register_activation_hook(__FILE__, 'aksu_defense_install');
 // ========== 加载核心模块 ==========
 foreach ([
     'firewall', 'iplist', 'bt', 'cc', 'cookie', 'header', 'useragent',
-    'injection', 'scan', 'uri', 'upload', 'filemonitor', 'log'
+    'injection', 'scan', 'uri', 'upload', 'filemonitor', 'log', 'login-protect'
 ] as $inc) {
     $inc_file = __DIR__ . "/includes/{$inc}.php";
     if (file_exists($inc_file)) require_once $inc_file;

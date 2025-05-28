@@ -4,10 +4,20 @@ if (!defined('ABSPATH')) exit;
 
 if (!function_exists('aksu_cc_defend')) {
     function aksu_cc_defend() {
+        // ====== 全局白名单豁免 ======
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        $white = get_option('wpss_ip_whitelist', '');
+        $white_arr = array_filter(array_map('trim', preg_split('/[\n,]+/', $white)));
+        foreach ($white_arr as $w) {
+            if (function_exists('aksu_ip_match') && aksu_ip_match($ip, $w)) {
+                return; // 命中白名单，直接放行
+            }
+        }
+        // ===========================
+
         // 新增：自定义白名单IP（如需可自行添加公网IP）
         $whitelist = ['127.0.0.1']; // 本地测试IP，可按需添加
 
-        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
         if (in_array($ip, $whitelist)) return;
 
         // 管理员豁免：已登录且为管理员账号直接放行
@@ -54,39 +64,43 @@ if (!function_exists('aksu_cc_defend')) {
                 aksu_defense_die('CC攻击检测，疑似恶意请求', null, [], 'cc');
             }
         }
-        // 2. 检查URI特征
+
+        // 2. 检查危险URI特征
         foreach ($dangerous_uri_patterns as $pattern) {
             if (preg_match($pattern, $req_uri)) {
                 if (function_exists('wpss_log')) wpss_log('cc', "敏感URI特征CC拦截: $ip $req_uri");
-                aksu_defense_die('CC攻击检测，疑似恶意请求', null, [], 'cc');
+                aksu_defense_die('CC攻击检测，疑似爆破', null, [], 'cc');
             }
         }
 
-        // 3. 速率限制
+        // 3. CC限速统计
         $now = time();
         $cc_data = get_transient($key);
-        if (!$cc_data) {
-            $cc_data = ['start' => $now, 'count' => 1, 'blocked' => 0];
+        if (!$cc_data || !is_array($cc_data)) {
+            $cc_data = ['count' => 1, 'start' => $now, 'block' => 0];
         } else {
-            // 已被封禁
-            if (!empty($cc_data['blocked']) && $now < $cc_data['blocked']) {
-                if (function_exists('wpss_log')) wpss_log('cc', "CC攻击防护，已封锁: $ip");
-                aksu_defense_die('您的访问过于频繁，请稍后再试。如果您不是恶意刷新，请联系管理员！', null, [], 'cc');
+            // 检查是否已在封禁期
+            if (!empty($cc_data['block']) && $cc_data['block'] > $now) {
+                if (function_exists('wpss_log')) wpss_log('cc', "CC限制封禁期内拦截: $ip");
+                aksu_defense_die('疑似CC攻击，已临时封禁', null, [], 'cc');
             }
-            // 超出统计周期，重置计数
-            if ($now - $cc_data['start'] > $period) {
-                $cc_data = ['start' => $now, 'count' => 1, 'blocked' => 0];
-            } else {
+
+            // 统计周期内计数
+            if (($now - $cc_data['start']) <= $period) {
                 $cc_data['count']++;
                 if ($cc_data['count'] > $limit) {
-                    $cc_data['blocked'] = $now + $blocktime;
+                    // 触发封禁
+                    $cc_data['block'] = $now + $blocktime;
                     set_transient($key, $cc_data, $blocktime);
-                    if (function_exists('wpss_log')) wpss_log('cc', "CC攻击检测，自动封锁: $ip");
-                    aksu_defense_die('您的访问过于频繁，请稍后再试。如果您不是恶意刷新，请联系管理员！', null, [], 'cc');
+                    if (function_exists('wpss_log')) wpss_log('cc', "CC超限封禁: $ip");
+                    aksu_defense_die('您操作过于频繁，请稍后再试', null, [], 'cc');
                 }
+            } else {
+                // 新周期
+                $cc_data = ['count' => 1, 'start' => $now, 'block' => 0];
             }
         }
-        set_transient($key, $cc_data, $period);
+        // 保存数据
+        set_transient($key, $cc_data, max($period, $blocktime));
     }
-    add_action('init', 'aksu_cc_defend', 3);
 }
